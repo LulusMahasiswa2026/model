@@ -117,8 +117,11 @@ def phase_2_preparation(df: pd.DataFrame):
     target_col = 'G3' if 'G3' in df.columns else df.columns[-1]
     X = df.drop([target_col], axis=1)
     y = (df[target_col].apply(lambda x: 1 if x >= 10 else 0) if target_col == 'G3' else df[target_col])
+    
+    if y.dtype == 'object':
+        y = LabelEncoder().fit_transform(y)
 
-    min_class = y.value_counts().min()
+    min_class = pd.Series(y).value_counts().min()
     strat = y if min_class >= 2 else None
     return train_test_split(X, y, test_size=0.2, random_state=42, stratify=strat)
 
@@ -159,7 +162,7 @@ def phase_3_engineering(X_train, X_test, y_train):
 def phase_4_modeling(X_train, y_train):
     print("\n" + "="*65 + "\n  FASE 4: MODELING (10 Model + SMOTE + Tuning)\n" + "="*65)
     smote = SMOTE(random_state=42)
-    X_res, y_res = smote.fit_resample(X_train, y_train)
+    X_res, y_res = smote.fit_resample(X_train, y_train) # type: ignore
     
     models = {
         "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
@@ -185,7 +188,7 @@ def phase_4_modeling(X_train, y_train):
     trained = {}
     for name, model in models.items():
         if name in tuning:
-            search = RandomizedSearchCV(model, tuning[name], n_iter=10, cv=cv, scoring='f1', n_jobs=-1, random_state=42)
+            search = RandomizedSearchCV(model, tuning[name], n_iter=10, cv=cv, scoring='f1_weighted', n_jobs=-1, random_state=42)
             search.fit(X_res, y_res)
             trained[name] = search.best_estimator_
         else:
@@ -201,14 +204,14 @@ def phase_5_evaluation(trained, X_test, y_test, X_train, y_train, output_dir="ou
     for name, model in trained.items():
         y_pred = model.predict(X_test)
         y_prob = model.predict_proba(X_test)[:, 1] if hasattr(model, 'predict_proba') else None
-        try: auc = roc_auc_score(y_test, y_prob) if y_prob is not None else np.nan
+        try: auc = roc_auc_score(pd.get_dummies(y_test), pd.get_dummies(y_pred) if y_prob is None else y_prob, multi_class='ovr')
         except ValueError: auc = np.nan
-        cv_scores = cross_val_score(model, X_train, y_train, cv=cv, scoring='f1')
+        cv_scores = cross_val_score(model, X_train, y_train, cv=cv, scoring='f1_weighted')
         results.append({
             'Model': name, 'Accuracy': round(accuracy_score(y_test, y_pred), 4),
-            'F1-Score': round(f1_score(y_test, y_pred, zero_division=0), 4),
-            'Precision': round(precision_score(y_test, y_pred, zero_division=0), 4),
-            'Recall': round(recall_score(y_test, y_pred, zero_division=0), 4),
+            'F1-Score': round(f1_score(y_test, y_pred, average='weighted', zero_division=0), 4),
+            'Precision': round(precision_score(y_test, y_pred, average='weighted', zero_division=0), 4),
+            'Recall': round(recall_score(y_test, y_pred, average='weighted', zero_division=0), 4),
             'AUC-ROC': round(auc, 4) if not np.isnan(auc) else np.nan,
             'CV F1 Mean': round(cv_scores.mean(), 4), 'CV F1 Std': round(cv_scores.std(), 4)
         })
@@ -217,7 +220,7 @@ def phase_5_evaluation(trained, X_test, y_test, X_train, y_train, output_dir="ou
     return df_res
 
 if __name__ == "__main__":
-    DATA = "data/raw/uci_math_students.csv"
+    DATA = "data/raw/student_dropout_prediction.csv"
     OUT = "outputs"
     df = phase_1_load(DATA)
     X_tr, X_te, y_tr, y_te = phase_2_preparation(df)
@@ -227,4 +230,8 @@ if __name__ == "__main__":
     joblib.dump(preprocessors, os.path.join(OUT, "models", "preprocessors.pkl"))
     
     trained = phase_4_modeling(X_tr_f, y_tr)
+    for name, model in trained.items():
+        filename = name.lower().replace(" ", "_") + ".pkl"
+        joblib.dump(model, os.path.join(OUT, "models", filename))
+        
     phase_5_evaluation(trained, X_te_f, y_te, X_tr_f, y_tr, OUT)
