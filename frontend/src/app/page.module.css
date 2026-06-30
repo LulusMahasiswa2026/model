@@ -146,8 +146,21 @@
   gap: 1.25rem;
 }
 
+.demographicsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.fieldColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
 @media (max-width: 520px) {
-  .formGrid {
+  .formGrid,
+  .demographicsGrid {
     grid-template-columns: 1fr;
   }
 }
@@ -162,6 +175,9 @@
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .input, .select {
@@ -184,6 +200,20 @@
   border-color: var(--brand-primary);
 }
 
+.selectPlaceholder {
+  color: var(--text-muted);
+}
+
+.inputError {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px var(--error-light);
+}
+
+.requiredMark {
+  color: var(--error);
+  font-weight: 700;
+}
+
 .select {
   appearance: none;
   -webkit-appearance: none;
@@ -198,6 +228,12 @@
 .helperText {
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+.errorText {
+  color: var(--error);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .actionRow {
