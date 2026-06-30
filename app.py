@@ -19,12 +19,35 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODELS_PATH = "outputs/models"
+# Absolute path relatif terhadap file ini → tahan dijalankan dari cwd mana pun.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODELS_PATH = os.path.join(BASE_DIR, "outputs", "models")
 PREPROCESSOR_FILE = os.path.join(MODELS_PATH, "preprocessors.pkl")
 
 # Only the 3 models actually trained in this project (notebooks/Model_ML.ipynb).
 # Any other .pkl that may linger in the deployment is intentionally NOT served.
 ALLOWED_MODELS = ["random_forest.pkl", "xgboost.pkl", "gradient_boosting.pkl"]
+
+# Kunci wajib di preprocessors.pkl (dihasilkan Fase 6 notebook).
+REQUIRED_PRE_KEYS = ("column_transformer", "scaler", "selector")
+
+
+def load_preprocessors():
+    """Muat & validasi preprocessors.pkl dengan pesan error yang jelas."""
+    if not os.path.exists(PREPROCESSOR_FILE):
+        raise HTTPException(
+            status_code=404,
+            detail="preprocessors.pkl tidak ditemukan. Jalankan notebook Model_ML.ipynb (sampai Fase 6).",
+        )
+    pre = joblib.load(PREPROCESSOR_FILE)
+    missing = [k for k in REQUIRED_PRE_KEYS if not (isinstance(pre, dict) and k in pre)]
+    if missing:
+        raise HTTPException(
+            status_code=500,
+            detail=(f"preprocessors.pkl tidak valid (key hilang: {missing}). "
+                    "File mungkin rusak/setengah-tulis — jalankan ulang Model_ML.ipynb hingga Fase 6 selesai."),
+        )
+    return pre
 
 # Pydantic schema matching the 31 features from the kaggle_higher_ed dataset
 class StudentData(BaseModel):
@@ -91,45 +114,45 @@ def predict_single(data: StudentData, model_name: str = "random_forest.pkl"):
         )
 
     try:
-        # 1. Load Preprocessors
-        if not os.path.exists(PREPROCESSOR_FILE):
-            raise HTTPException(status_code=404, detail="Preprocessor file not found.")
-        preprocessors = joblib.load(PREPROCESSOR_FILE)
-        
+        # 1. Load & validasi preprocessors
+        preprocessors = load_preprocessors()
+
         # 2. Load Model
         model_file = os.path.join(MODELS_PATH, model_name)
         if not os.path.exists(model_file):
             raise HTTPException(status_code=404, detail=f"Model {model_name} not found.")
         model = joblib.load(model_file)
-        
+
         # 3. Convert input to DataFrame
         input_dict = data.dict()
         df = pd.DataFrame([input_dict])
-        
+
         # 4. Transform using preprocessing pipeline
         ct = preprocessors['column_transformer']
         scaler = preprocessors['scaler']
         selector = preprocessors['selector']
-        
+
         X_ct = ct.transform(df)
         X_scaled = scaler.transform(X_ct)
         X_selected = selector.transform(X_scaled)
-        
+
         # 5. Predict
         prediction = model.predict(X_selected)[0]
-        
+
         # 6. Probabilities (if available)
         probabilities = None
         if hasattr(model, "predict_proba"):
             probs = model.predict_proba(X_selected)[0]
             probabilities = {f"Grade {i}": float(p) for i, p in enumerate(probs)}
-            
+
         return {
             "prediction": int(prediction),
             "probabilities": probabilities,
             "model_used": model_name
         }
 
+    except HTTPException:
+        raise  # teruskan error yang sudah jelas (404/500 di atas) tanpa dibungkus ulang
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -145,11 +168,9 @@ async def audit_file(file: UploadFile = File(...), model_name: str = "random_for
         )
 
     try:
-        # Load Preprocessors and Model
-        if not os.path.exists(PREPROCESSOR_FILE):
-             raise HTTPException(status_code=404, detail="Preprocessor file not found.")
-        preprocessors = joblib.load(PREPROCESSOR_FILE)
-        
+        # Load & validasi preprocessors + model
+        preprocessors = load_preprocessors()
+
         model_file = os.path.join(MODELS_PATH, model_name)
         if not os.path.exists(model_file):
             raise HTTPException(status_code=404, detail=f"Model {model_name} not found.")
@@ -209,7 +230,9 @@ async def audit_file(file: UploadFile = File(...), model_name: str = "random_for
             "total_records": len(df),
             "csv_content": output.getvalue()
         }
-        
+
+    except HTTPException:
+        raise  # teruskan error yang sudah jelas tanpa dibungkus ulang jadi 500
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
