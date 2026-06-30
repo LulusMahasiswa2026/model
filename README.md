@@ -34,13 +34,14 @@ Pastikan dataset CSV Anda diletakkan di dalam folder:
 ## Cara Penggunaan
 
 ### A. Jalankan Audit lewat Notebook (Alur Utama)
-Seluruh pipeline (Fase 1–5) ada di satu notebook. Buka dan jalankan semua sel:
-`notebooks/Model_ML.ipynb`
+Seluruh pipeline (Fase 1–6) ada di satu notebook yang berdiri sendiri. Buka dan jalankan semua sel:
+`notebooks/Model_ML.ipynb` (dataset: `data/raw/kaggle_higher_ed_01.csv`, target `grade` → estimasi IPK 0–7).
 
 **Hasil akan tersimpan di folder `outputs/`:**
 - `model_comparison.csv` — Tabel perbandingan performa (Accuracy, Precision, Recall, F1-Score, AUC-ROC, CV F1 Mean/Std).
 - `confusion_matrix_best.png` — Confusion matrix model terbaik.
 - `feature_importance_best.png` — Feature importance model terbaik.
+- `models/preprocessors.pkl` + `models/{random_forest,xgboost,gradient_boosting}.pkl` — preprocessor & 3 model siap-saji (Fase 6), nama & strukturnya cocok dengan `app.py`.
 
 EDA awal tersedia di `notebooks/EDA.ipynb`.
 

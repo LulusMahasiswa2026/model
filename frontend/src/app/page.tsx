@@ -54,28 +54,18 @@ const emptyStudent = (): Record<string, number | ""> => {
   return cleared;
 };
 
-// Penjelasan/Saran Akademik per Kelompok IPK
+// Penjelasan/Saran Akademik per tingkat (3 kelas: Rendah / Sedang / Tinggi)
 const IPK_EXPLANATION: Record<number, string> = {
-  0: "Berdasarkan data, mahasiswa memiliki risiko tinggi untuk tidak lulus. Diperlukan intervensi akademik yang komprehensif, evaluasi ulang kebiasaan belajar, dan bimbingan konseling yang intensif.",
-  1: "Prediksi menunjukkan IPK yang sangat kurang. Mahasiswa ini sangat disarankan untuk mengikuti kelas remedial, mengubah gaya belajar, dan mendapatkan pendampingan tutor sebaya.",
-  2: "Hasil prediksi menunjukkan IPK yang kurang. Mahasiswa perlu meningkatkan kehadiran di kelas, lebih aktif berdiskusi, dan mulai mengatur jadwal belajar mingguan dengan lebih disiplin.",
-  3: "Prediksi IPK mahasiswa berada di batas cukup. Meski lulus, masih banyak ruang untuk perbaikan. Mahasiswa dapat didorong untuk lebih banyak membaca jurnal ilmiah dan mengurangi kegiatan di luar jika dirasa mengganggu akademik.",
-  4: "Mahasiswa diprediksi lulus dengan memuaskan. Pola belajar saat ini sudah cukup baik, pertahankan konsistensi dan mulailah mengeksplorasi proyek-proyek praktis untuk menambah portofolio.",
-  5: "Hasil yang sangat memuaskan. Mahasiswa memiliki peluang besar untuk lulus dengan nilai yang sangat baik. Sangat disarankan untuk mulai mencari peluang magang atau asisten peneliti.",
-  6: "Prediksi menunjukkan kelulusan dengan pujian. Performa akademik mahasiswa ini sangat cemerlang. Sangat direkomendasikan untuk mengikuti kompetisi akademik atau program fast-track.",
-  7: "Luar biasa! Mahasiswa diprediksi lulus dengan predikat Cum Laude (Tertinggi). Berikan dukungan maksimal untuk mempertahankan performa sempurna ini hingga akhir masa studi.",
+  0: "Mahasiswa diprediksi berada di tingkat RENDAH (estimasi IPK < 2.00) dan berisiko tidak lulus dengan baik. Diperlukan intervensi akademik: kelas remedial, evaluasi ulang kebiasaan belajar, dan bimbingan konseling/tutor sebaya yang intensif.",
+  1: "Mahasiswa diprediksi berada di tingkat SEDANG (estimasi IPK 2.00 - 3.49). Sudah di jalur lulus, namun masih banyak ruang perbaikan. Dorong peningkatan kehadiran, diskusi yang lebih aktif, jadwal belajar mingguan yang disiplin, dan lebih banyak membaca jurnal ilmiah.",
+  2: "Mahasiswa diprediksi berada di tingkat TINGGI (estimasi IPK >= 3.50). Performa akademik sangat baik. Pertahankan konsistensi dan dorong untuk mengambil peluang magang, asisten peneliti, atau kompetisi akademik untuk menambah portofolio.",
 };
 
-// Mapping prediksi numerik ke rentang IPK
+// Mapping prediksi numerik ke label tingkat
 const IPK_MAP: Record<number, string> = {
-  0: "0.00 - 0.99 (Tidak Lulus)",
-  1: "1.00 - 1.49 (Sangat Kurang)",
-  2: "1.50 - 1.99 (Kurang)",
-  3: "2.00 - 2.49 (Cukup)",
-  4: "2.50 - 2.99 (Memuaskan)",
-  5: "3.00 - 3.49 (Sangat Memuaskan)",
-  6: "3.50 - 3.74 (Dengan Pujian)",
-  7: "3.75 - 4.00 (Cum Laude)",
+  0: "Rendah / Berisiko (IPK < 2.00)",
+  1: "Sedang / Cukup (IPK 2.00 - 3.49)",
+  2: "Tinggi / Berprestasi (IPK >= 3.50)",
 };
 
 export default function Home() {

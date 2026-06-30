@@ -10,37 +10,23 @@ import {
   Cell,
 } from "recharts";
 
-// Warna untuk setiap kelompok IPK (8 kelompok, 0-7)
-const COLORS = [
-  "#ef4444", // 0 - merah
-  "#f97316", // 1 - oranye
-  "#eab308", // 2 - kuning
-  "#84cc16", // 3 - lime
-  "#22c55e", // 4 - hijau
-  "#14b8a6", // 5 - teal
-  "#6366f1", // 6 - indigo
-  "#8b5cf6", // 7 - ungu
-];
-
-const IPK_SHORT: Record<number, string> = {
-  0: "< 1.00",
-  1: "1.00-1.49",
-  2: "1.50-1.99",
-  3: "2.00-2.49",
-  4: "2.50-2.99",
-  5: "3.00-3.49",
-  6: "3.50-3.74",
-  7: "3.75-4.00",
+// 3 tingkat kelulusan (0 = Rendah, 1 = Sedang, 2 = Tinggi)
+const TIERS: Record<number, { short: string; color: string }> = {
+  0: { short: "Rendah", color: "#ef4444" }, // merah
+  1: { short: "Sedang", color: "#eab308" }, // kuning
+  2: { short: "Tinggi", color: "#22c55e" }, // hijau
 };
 
+const FALLBACK = "#6366f1";
+
 // ─── Gauge Setengah Lingkaran ───
-export function IpkGauge({ value, max = 7 }: { value: number; max?: number }) {
+export function IpkGauge({ value, max = 2 }: { value: number; max?: number }) {
   const radius = 80;
   const cx = 100;
   const cy = 95;
   const startAngle = Math.PI;
   const endAngle = 0;
-  const fraction = Math.min(value / max, 1);
+  const fraction = max === 0 ? 0 : Math.min(value / max, 1);
 
   // Arc background
   const bgD = describeArc(cx, cy, radius, startAngle, endAngle);
@@ -48,7 +34,8 @@ export function IpkGauge({ value, max = 7 }: { value: number; max?: number }) {
   const fillEnd = startAngle - fraction * Math.PI;
   const fillD = describeArc(cx, cy, radius, startAngle, fillEnd);
 
-  const color = COLORS[value] ?? "#6366f1";
+  const tier = TIERS[value];
+  const color = tier?.color ?? FALLBACK;
 
   return (
     <svg width="200" height="120" viewBox="0 0 200 120">
@@ -56,12 +43,12 @@ export function IpkGauge({ value, max = 7 }: { value: number; max?: number }) {
       <path d={bgD} fill="none" stroke="#e2e8f0" strokeWidth="14" strokeLinecap="round" />
       {/* filled arc */}
       <path d={fillD} fill="none" stroke={color} strokeWidth="14" strokeLinecap="round" />
-      {/* center value */}
-      <text x={cx} y={cy - 10} textAnchor="middle" fontSize="28" fontWeight="700" fill="currentColor" fontFamily="Poppins, sans-serif">
-        {value}
+      {/* label tingkat */}
+      <text x={cx} y={cy - 8} textAnchor="middle" fontSize="22" fontWeight="700" fill={color} fontFamily="Poppins, sans-serif">
+        {tier?.short ?? value}
       </text>
       <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="#94a3b8" fontFamily="Poppins, sans-serif">
-        Kelompok IPK
+        Tingkat Kelulusan
       </text>
     </svg>
   );
@@ -85,7 +72,7 @@ export function ProbabilityBarChart({
   const data = Object.entries(probabilities).map(([key, val]) => {
     const idx = parseInt(key.replace("Grade ", ""));
     return {
-      name: IPK_SHORT[idx] ?? key,
+      name: TIERS[idx]?.short ?? key,
       persen: parseFloat((val * 100).toFixed(1)),
       idx,
     };
@@ -96,7 +83,7 @@ export function ProbabilityBarChart({
       <BarChart data={data} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
         <XAxis
           dataKey="name"
-          tick={{ fontSize: 10, fontFamily: "Poppins" }}
+          tick={{ fontSize: 11, fontFamily: "Poppins" }}
           axisLine={false}
           tickLine={false}
         />
@@ -118,7 +105,7 @@ export function ProbabilityBarChart({
         />
         <Bar dataKey="persen" radius={[4, 4, 0, 0]} animationDuration={600}>
           {data.map((entry) => (
-            <Cell key={entry.name} fill={COLORS[entry.idx] ?? "#6366f1"} />
+            <Cell key={entry.name} fill={TIERS[entry.idx]?.color ?? FALLBACK} />
           ))}
         </Bar>
       </BarChart>
