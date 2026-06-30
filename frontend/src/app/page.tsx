@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import styles from "./page.module.css";
-import { IpkGauge, ProbabilityBarChart, AuditDonutChart } from "./components/Charts";
+import { IpkGauge, ProbabilityBarChart } from "./components/Charts";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
@@ -46,6 +46,14 @@ const generateRandomStudent = () => ({
   course_id: randomInt(1, 15),
 });
 
+// Template form kosong (semua field "") — deterministik & aman untuk hidrasi SSR.
+// Memakai kunci dari generateRandomStudent() agar struktur field tetap satu sumber.
+const emptyStudent = (): Record<string, number | ""> => {
+  const cleared: Record<string, number | ""> = {};
+  for (const key of Object.keys(generateRandomStudent())) cleared[key] = "";
+  return cleared;
+};
+
 // Penjelasan/Saran Akademik per Kelompok IPK
 const IPK_EXPLANATION: Record<number, string> = {
   0: "Berdasarkan data, mahasiswa memiliki risiko tinggi untuk tidak lulus. Diperlukan intervensi akademik yang komprehensif, evaluasi ulang kebiasaan belajar, dan bimbingan konseling yang intensif.",
@@ -77,13 +85,9 @@ export default function Home() {
   const [selectedModel, setSelectedModel] = useState("random_forest.pkl");
 
   const [activeTab, setActiveTab] = useState("academic");
-  // Mulai dengan form kosong secara default
-  const [formData, setFormData] = useState<Record<string, number | "">>({});
-  
-  // Karena useState awal kosong, kita perlu mengisi nilai awal di useEffect agar hidrasi SSR tidak berantakan
-  useEffect(() => {
-    handleClear(); // Set semua field menjadi ""
-  }, []);
+  // Mulai dengan semua field kosong ("") — initializer lazy ini deterministik
+  // sehingga render server & klien identik (tidak ada mismatch hidrasi).
+  const [formData, setFormData] = useState<Record<string, number | "">>(emptyStudent);
 
   const [loading, setLoading] = useState(false);
   const [predictionResult, setPredictionResult] = useState<{
@@ -92,16 +96,6 @@ export default function Home() {
     model_used: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [auditResult, setAuditResult] = useState<{
-    total_records: number;
-    summary: Record<string, number>;
-    csv_content: string;
-  } | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ──────────────────────────── driver.js tour ────────────────────────────
   const startTour = () => {
@@ -196,13 +190,6 @@ export default function Home() {
             description: "Voila! Hasilnya akan muncul di kotak kanan ini. Anda tidak hanya akan melihat kelompok IPK, tapi juga probabilitas kepastian model dan rekomendasi akademik khusus untuk mahasiswa tersebut.",
           },
         },
-        {
-          element: "#batch-card",
-          popover: {
-            title: "Bonus: Audit Massal 📁",
-            description: "Punya ratusan data mahasiswa dalam format Excel/CSV? Tarik dan lepas file CSV Anda di sini! Sistem akan mengaudit ratusan mahasiswa sekaligus dalam hitungan detik dan memberikan laporan lengkap.",
-          },
-        },
       ],
     });
 
@@ -233,7 +220,7 @@ export default function Home() {
         } else {
           setApiConnected(false);
         }
-      } catch (err) {
+      } catch {
         setApiConnected(false);
       }
     }
@@ -275,60 +262,11 @@ export default function Home() {
 
       const data = await res.json();
       setPredictionResult(data);
-    } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan koneksi.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan koneksi.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setCsvFile(e.target.files[0]);
-      setAuditResult(null);
-    }
-  };
-
-  const handleCsvSubmit = async () => {
-    if (!csvFile) return;
-    setUploading(true);
-    setError(null);
-
-    const body = new FormData();
-    body.append("file", csvFile);
-
-    try {
-      const res = await fetch(
-        `${API_BASE}/audit-upload?model_name=${selectedModel}`,
-        { method: "POST", body }
-      );
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || "Audit CSV gagal.");
-      }
-
-      const data = await res.json();
-      setAuditResult(data);
-    } catch (err: any) {
-      setError(err.message || "Gagal memproses file CSV.");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const downloadAuditedCsv = () => {
-    if (!auditResult) return;
-    const blob = new Blob([auditResult.csv_content], {
-      type: "text/csv;charset=utf-8;",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `hasil_audit_${csvFile?.name || "data.csv"}`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const handlePreFill = () => {
@@ -338,14 +276,7 @@ export default function Home() {
   };
 
   const handleClear = () => {
-    // Buat template object dengan semua field bernilai "" berdasarkan struktur generateRandomStudent()
-    const template = generateRandomStudent();
-    const cleared = Object.keys(template).reduce((acc, curr) => {
-      acc[curr] = "";
-      return acc;
-    }, {} as Record<string, number | "">);
-    
-    setFormData(cleared);
+    setFormData(emptyStudent());
     setPredictionResult(null);
     setError(null);
   };
@@ -681,7 +612,7 @@ export default function Home() {
           </form>
         </div>
 
-        {/* ── Right: Results + Batch ── */}
+        {/* ── Right: Results ── */}
         <div className={styles.sidebar}>
           {/* Hasil Prediksi */}
           <div className={styles.card} id="result-card">
@@ -750,85 +681,6 @@ export default function Home() {
                   <li>Pilih <strong>model machine learning</strong> yang ingin digunakan di bagian bawah formulir.</li>
                   <li>Klik tombol <strong>Mulai Prediksi</strong> untuk melihat estimasi IPK kelulusan.</li>
                 </ol>
-              </div>
-            )}
-          </div>
-
-          {/* Audit Massal */}
-          <div className={styles.card} id="batch-card">
-            <div className={styles.cardTitle}>Audit Dataset Massal</div>
-
-            <div
-              className={styles.dropzone}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <svg className={styles.uploadIcon} xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              <div className={styles.fileInfo} style={{ marginTop: "0.5rem" }}>
-                {csvFile
-                  ? csvFile.name
-                  : "Tarik & lepas file CSV di sini, atau klik untuk memilih file"}
-              </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                accept=".csv"
-                style={{ display: "none" }}
-              />
-            </div>
-
-            {csvFile && (
-              <div
-                style={{
-                  marginTop: "1rem",
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "0.5rem",
-                }}
-              >
-                <button
-                  className={`${styles.btn} ${styles.btnSecondary}`}
-                  onClick={() => setCsvFile(null)}
-                >
-                  Batal
-                </button>
-                <button
-                  className={`${styles.btn} ${styles.btnPrimary}`}
-                  onClick={handleCsvSubmit}
-                  disabled={uploading || !apiConnected}
-                >
-                  {uploading ? "Menganalisis..." : "Audit File CSV"}
-                </button>
-              </div>
-            )}
-
-            {auditResult && (
-              <div className={styles.auditResults}>
-                <div className={styles.downloadRow}>
-                  <span>
-                    Audit Selesai ({auditResult.total_records} mahasiswa)
-                  </span>
-                  <button
-                    className={styles.btnDownload}
-                    onClick={downloadAuditedCsv}
-                  >
-                    Unduh CSV Hasil
-                  </button>
-                </div>
-
-                <div style={{ marginTop: "0.5rem" }}>
-                  <div
-                    style={{
-                      fontSize: "0.8125rem",
-                      fontWeight: "600",
-                      marginBottom: "0.5rem",
-                      color: "var(--text-secondary)",
-                    }}
-                  >
-                    Distribusi Estimasi IPK Kelulusan:
-                  </div>
-                  <AuditDonutChart summary={auditResult.summary} total={auditResult.total_records} />
-                </div>
               </div>
             )}
           </div>

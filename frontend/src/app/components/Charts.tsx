@@ -8,8 +8,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  PieChart,
-  Pie,
 } from "recharts";
 
 // Warna untuk setiap kelompok IPK (8 kelompok, 0-7)
@@ -124,58 +122,6 @@ export function ProbabilityBarChart({
           ))}
         </Bar>
       </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-// ─── Donut Chart Distribusi Audit ───
-export function AuditDonutChart({
-  summary,
-  total,
-}: {
-  summary: Record<string, number>;
-  total: number;
-}) {
-  const data = Object.entries(summary).map(([key, val]) => {
-    const idx = parseInt(key.replace("Grade ", ""));
-    return {
-      name: IPK_SHORT[idx] ?? key,
-      value: val,
-      idx,
-    };
-  });
-
-  return (
-    <ResponsiveContainer width="100%" height={220}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          innerRadius={55}
-          outerRadius={85}
-          paddingAngle={3}
-          dataKey="value"
-          animationDuration={600}
-          label={({ name, percent }) =>
-            `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
-          }
-          labelLine={false}
-        >
-          {data.map((entry) => (
-            <Cell key={entry.name} fill={COLORS[entry.idx] ?? "#6366f1"} />
-          ))}
-        </Pie>
-        <Tooltip
-          contentStyle={{
-            borderRadius: 8,
-            fontSize: 12,
-            fontFamily: "Poppins",
-            border: "1px solid #e2e8f0",
-          }}
-          formatter={(v) => [`${v} mahasiswa`, "Jumlah"]}
-        />
-      </PieChart>
     </ResponsiveContainer>
   );
 }

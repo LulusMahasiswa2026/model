@@ -22,6 +22,10 @@ app.add_middleware(
 MODELS_PATH = "outputs/models"
 PREPROCESSOR_FILE = os.path.join(MODELS_PATH, "preprocessors.pkl")
 
+# Only the 3 models actually trained in this project (notebooks/Model_ML.ipynb).
+# Any other .pkl that may linger in the deployment is intentionally NOT served.
+ALLOWED_MODELS = ["random_forest.pkl", "xgboost.pkl", "gradient_boosting.pkl"]
+
 # Pydantic schema matching the 31 features from the kaggle_higher_ed dataset
 class StudentData(BaseModel):
     age: int
@@ -66,22 +70,26 @@ def home():
 
 @app.get("/models")
 def get_models():
-    """List all available models in outputs/models."""
+    """List available models, restricted to the 3 trained in this project."""
     if not os.path.exists(MODELS_PATH):
         return {"models": []}
-        
-    all_files = [f for f in os.listdir(MODELS_PATH) if f.endswith('.pkl') and f != 'preprocessors.pkl']
-    
-    # Optional fallback if directory somehow has no models but files exist (should not happen)
-    if not all_files:
-        for f in ["random_forest.pkl", "gradient_boosting.pkl", "xgboost.pkl"]:
-            if os.path.exists(os.path.join(MODELS_PATH, f)):
-                all_files.append(f)
-                
-    return {"models": sorted(list(set(all_files)))}
+
+    present = {f for f in os.listdir(MODELS_PATH) if f.endswith('.pkl')}
+    # Keep the canonical order (RF, XGB, GB) and only expose models that exist on disk.
+    models = [m for m in ALLOWED_MODELS if m in present]
+
+    return {"models": models}
 
 @app.post("/predict")
 def predict_single(data: StudentData, model_name: str = "random_forest.pkl"):
+    # Restrict to the 3 models trained in this project (outside try so the
+    # 400 isn't swallowed and re-raised as a 500 by the handler below).
+    if model_name not in ALLOWED_MODELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Model '{model_name}' tidak tersedia. Pilih salah satu: {ALLOWED_MODELS}"
+        )
+
     try:
         # 1. Load Preprocessors
         if not os.path.exists(PREPROCESSOR_FILE):
@@ -129,7 +137,13 @@ def predict_single(data: StudentData, model_name: str = "random_forest.pkl"):
 async def audit_file(file: UploadFile = File(...), model_name: str = "random_forest.pkl"):
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Only CSV files are allowed")
-    
+
+    if model_name not in ALLOWED_MODELS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Model '{model_name}' tidak tersedia. Pilih salah satu: {ALLOWED_MODELS}"
+        )
+
     try:
         # Load Preprocessors and Model
         if not os.path.exists(PREPROCESSOR_FILE):

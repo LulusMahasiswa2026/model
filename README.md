@@ -9,7 +9,7 @@ Sistem ini dibangun berdasarkan standar **Principal ML Engineer** dengan mematuh
 1. **Fase 1: Data Loading & EDA** — Deteksi profil data dan distribusi target.
 2. **Fase 2: Data Preparation** — 7 teknik (Cleaning, Imputation, Transformation, Outlier, Splitting, Normalization, Imbalance).
 3. **Fase 3: Feature Engineering** — 5 teknik (Addition, Extraction, Reduction, Selection, PCA).
-4. **Fase 4: Modeling** — Audit perbandingan 10 model sekaligus (RF, XGBoost, SVM, KNN, dll) dengan Hyperparameter Tuning.
+4. **Fase 4: Modeling** — Audit perbandingan 3 model (Random Forest, XGBoost, Gradient Boosting) dengan SMOTE & Hyperparameter Tuning.
 5. **Fase 5: Evaluation** — Dashboard performa (F1, Accuracy, Precision, Recall, AUC-ROC, dan CV Mean/Std).
 
 ---
@@ -33,18 +33,22 @@ Pastikan dataset CSV Anda diletakkan di dalam folder:
 
 ## Cara Penggunaan
 
-### A. Jalankan Audit Otomatis (Hasil Akhir)
-Untuk menjalankan seluruh proses audit untuk semua dataset di `data/raw/` sekaligus:
-```bash
-python main.py
-```
-**Hasil akan tersimpan di:**
-- `outputs/models/` — File `.pkl` untuk model dan preprocessor.
-- `outputs/` — Grafik perbandingan (`.png`) dan tabel CSV hasil audit.
+### A. Jalankan Audit lewat Notebook (Alur Utama)
+Seluruh pipeline (Fase 1–5) ada di satu notebook. Buka dan jalankan semua sel:
+`notebooks/Model_ML.ipynb`
 
-### B. Jalankan Audit Interaktif (Langkah-demi-Langkah)
-Jika ingin melihat prosesnya secara detail di setiap fase, buka Notebook:
-`notebooks/02-full-audit-pipeline.ipynb`
+**Hasil akan tersimpan di folder `outputs/`:**
+- `model_comparison.csv` — Tabel perbandingan performa (Accuracy, Precision, Recall, F1-Score, AUC-ROC, CV F1 Mean/Std).
+- `confusion_matrix_best.png` — Confusion matrix model terbaik.
+- `feature_importance_best.png` — Feature importance model terbaik.
+
+EDA awal tersedia di `notebooks/EDA.ipynb`.
+
+### B. (Opsional) Sajikan Model via API
+`app.py` (FastAPI) menyajikan model `.pkl` dari `outputs/models/` untuk dipakai frontend:
+```bash
+uvicorn app:app --reload
+```
 
 ---
 
